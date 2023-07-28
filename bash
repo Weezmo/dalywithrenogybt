@@ -5,3 +5,5 @@ git clone https://github.com/dreadnought/python-daly-bms.git
 cd python-daly-bms
 sudo python3 setup.py install
 cd
+## test serial connection on usb0
+daly-bms-cli  -d /dev/ttyUSB0 --soc
