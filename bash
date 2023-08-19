@@ -8,3 +8,20 @@ sudo python3 setup.py install
 sudo reboot
 ## test serial connection on usb0
 daly-bms-cli  -d /dev/ttyUSB0 --soc
+
+
+
+
+
+##quick copy, havent sorted into files
+
+#!/bin/bash
+
+python3 ./renogy_bt1/example.py >/dev/null 2>&1 &
+while true; do
+    ./dalybms72.sh >/dev/null 2>&1 &
+    ./dalybms280.sh >/dev/null 2>&1 &
+    sleep 1  # Add a delay between iterations if desired
+done
+
+nohup ./start.sh >/dev/null 2>&1 &
