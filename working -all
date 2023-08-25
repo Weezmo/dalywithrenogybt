@@ -1,0 +1,91 @@
+#!/bin/bash
+
+output=$(daly-bms-cli -d /dev/ttyUSB1 --all)
+
+# MQTT broker details
+broker="192.168.10.253"
+port="1883"
+topic="daly280"
+username="mqtt"
+password="mqtt"
+
+# Publish the values to MQTT using Paho MQTT Python client
+python3 - <<EOF
+import paho.mqtt.client as mqtt
+import json
+
+def on_connect(client, userdata, flags, rc):
+    print("Connected to MQTT broker with result code: " + str(rc))
+    publish_values(client)
+
+def publish_value(client, subtopic, value):
+    client.publish("$topic/" + subtopic, str(value))
+
+def publish_values(client):
+    payload = json.loads('''$output''')
+
+    soc = payload["soc"]
+    cell_voltage_range = payload["cell_voltage_range"]
+    temperature_range = payload["temperature_range"]
+    mosfet_status = payload["mosfet_status"]
+    status = payload["status"]
+    cell_voltages = payload["cell_voltages"]
+    temperatures = payload["temperatures"]
+    balancing_status = payload["balancing_status"]
+    errors = payload["errors"]
+
+    # Publish values under "soc" group
+    publish_value(client, "soc/total_voltage", soc["total_voltage"])
+    publish_value(client, "soc/current", soc["current"])
+    publish_value(client, "soc/soc_percent", soc["soc_percent"])
+
+    # Publish values under "cell_voltage_range" group
+    publish_value(client, "cell_voltage_range/highest_voltage", cell_voltage_range["highest_voltage"])
+    publish_value(client, "cell_voltage_range/highest_cell", cell_voltage_range["highest_cell"])
+    publish_value(client, "cell_voltage_range/lowest_voltage", cell_voltage_range["lowest_voltage"])
+    publish_value(client, "cell_voltage_range/lowest_cell", cell_voltage_range["lowest_cell"])
+
+    # Publish values under "temperature_range" group
+    publish_value(client, "temperature_range/highest_temperature", temperature_range["highest_temperature"])
+    publish_value(client, "temperature_range/highest_sensor", temperature_range["highest_sensor"])
+    publish_value(client, "temperature_range/lowest_temperature", temperature_range["lowest_temperature"])
+    publish_value(client, "temperature_range/lowest_sensor", temperature_range["lowest_sensor"])
+
+    # Publish values under "mosfet_status" group
+    publish_value(client, "mosfet_status/mode", mosfet_status["mode"])
+    publish_value(client, "mosfet_status/charging_mosfet", mosfet_status["charging_mosfet"])
+    publish_value(client, "mosfet_status/discharging_mosfet", mosfet_status["discharging_mosfet"])
+    publish_value(client, "mosfet_status/capacity_ah", mosfet_status["capacity_ah"])
+
+    # Publish values under "status" group
+    publish_value(client, "status/cells", status["cells"])
+    publish_value(client, "status/temperature_sensors", status["temperature_sensors"])
+    publish_value(client, "status/charger_running", status["charger_running"])
+    publish_value(client, "status/load_running", status["load_running"])
+    publish_value(client, "status/DI1", status["states"]["DI1"])
+    publish_value(client, "status/cycles", status["cycles"])
+
+    # Publish values under "cell_voltages" group
+    for cell, voltage in cell_voltages.items():
+        publish_value(client, "cell_voltages/cell_" + cell, voltage)
+
+    # Publish values under "temperatures" group
+    for sensor, temperature in temperatures.items():
+        publish_value(client, "temperatures/sensor_" + sensor, temperature)
+
+    # Publish values under "balancing_status" group
+    publish_value(client, "balancing_status/error", balancing_status["error"])
+
+    # Publish values under "errors" group
+    for error in errors:
+        publish_value(client, "errors/error", error)
+
+client = mqtt.Client()
+client.username_pw_set("$username", "$password")
+client.on_connect = on_connect
+client.connect("$broker", $port, 60)
+
+client.loop_start()
+client.loop_stop()
+client.disconnect()
+EOF
